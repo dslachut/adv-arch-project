@@ -9,4 +9,4 @@ if __name__=='__main__':
         print 'data.txt reg.txt config.txt result.txt'
     else:
         sim = Simulation(argv[1],argv[2],argv[3],argv[4])
-        sim.Run()
+        sim.Run(argv[5])
