@@ -44,7 +44,15 @@ class Scoreboard:
                     self.fetched.fetch = self.Clock.time
                     self.Records[self.icounter] = self.fetched
         #Check halt        
-        self.halted = self.halting
+        self.halted = self.halting and (self.fetched is None)
+        self.halted = self.halted and (not self.FU.Int.busy)
+        for U in self.FU.Add:
+            self.halted = self.halted and (not U.busy)
+        for U in self.FU.Div:
+            self.halted = self.halted and (not U.busy)
+        for U in self.FU.Mul:
+            self.halted = self.halted and (not U.busy)
+        self.halted = self.halted and (len(self.Reg.Reserve) == 0)
         
         return self.halted
 
@@ -105,6 +113,7 @@ class Instruction:
         self.Op = C[0]
         self.Unit = ''
         self.Xtime = 0
+        self.FU = None
         if self.Op == 'L.D':
             pass
         elif self.Op == 'S.D':
