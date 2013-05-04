@@ -43,10 +43,10 @@ class Scoreboard:
                     self.fetched.ID = self.icounter
                     self.fetched.fetch = self.Clock.time
                     self.Records[self.icounter] = self.fetched
-        #Check halt
-        if self.halting:
-            return True
-        return False
+        #Check halt        
+        self.halted = self.halting
+        
+        return self.halted
 
 class Record:
     def __init__(self):
