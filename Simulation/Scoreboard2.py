@@ -10,6 +10,21 @@ class Scoreboard:
         self.Mem = Memory(data,inst)
         self.FU = Units(fu)
         self.Reg = Registers(reg)
+        self.Clock = Clock()
+        self.Records = {}
+
+class Record:
+    def __init__(self):
+        self.instruction = None
+        self.fetch = -1
+        self.issue = -1
+        self.read = -1
+        self.execute = -1
+        self.write = -1
+        self.raw = False
+        self.war = False
+        self.waw = False
+        self.struct = False
 
 class FuncUnit:
     def __init__(self):
