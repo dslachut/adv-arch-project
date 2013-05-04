@@ -5,6 +5,12 @@ Created on Sat May  4 14:11:03 2013
 @author: david
 """
 
+class Scoreboard:
+    def __init__(self,fu,reg,data,inst):
+        self.Mem = Memory(data,inst)
+        self.FU = Units(fu)
+        self.Reg = Registers(reg)
+
 class FuncUnit:
     def __init__(self):
         self.time = -1
@@ -39,6 +45,7 @@ class Instruction:
     def __init__(self,inst):
         self.label = ''
         inst = inst.strip()
+        self.inst = inst
         L = inst.split(':')
         if len(L) == 2:
             self.label = L[0].strip()
@@ -53,7 +60,7 @@ class Instruction:
             pass
         elif self.Op == 'SW':
             pass
-        elif self.Op = 'HLT':
+        elif self.Op == 'HLT':
             pass
         elif self.Op == 'J':
             pass
@@ -69,3 +76,25 @@ class Instruction:
             pass
         elif self.Op == 'DSUBI':
             pass
+        elif self.Op == 'AND':
+            pass
+        elif self.Op == 'ANDI':
+            pass
+        elif self.Op == 'OR':
+            pass
+        elif self.Op == 'ORI':
+            pass
+        elif self.Op == 'ADD.D':
+            pass
+        elif self.Op == 'MUL.D':
+            pass
+        elif self.Op == 'DIV.D':
+            pass
+        elif self.Op == 'SUB.D':
+            pass
+        else:
+            raise Exception('Invalid Instruction',inst)
+            
+class Memory:
+    def __init__(self,data,inst):
+        pass
