@@ -12,9 +12,45 @@ class Scoreboard:
         self.Reg = Registers(reg)
         self.Clock = Clock()
         self.Records = {}
+        self.fetched = None
+        self.halting = False
+        self.halted = False
+        self.icounter = 0
+    def Cycle(self):
+        #Increment the clock and update the FU countdowns
+        self.Clock.increment()
+        if self.FU.Int.time > -1:
+           self.FU.Int.time -= 1
+        for i in len(self.FU.Add):
+            if self.FU.Add[i].time > -1:
+                self.FU.Add[i].time -= 1
+        for i in len(self.FU.Mul):
+            if self.FU.Mul[i].time > -1:
+                self.FU.Mul[i].time -= 1
+        for i in len(self.FU.Div):
+            if self.FU.Div[i].time > -1:
+                self.FU.Div[i].time -= 1
+        #Writebacks
+        #Executions
+        #Reads
+        #Issue
+        #Fetch
+        if not self.halting:#Fetch if not halting
+            if self.fetched is None:#If nothing waiting to issue
+                self.fetched = self.Mem.fetch()#Mem fetch returns a record
+                if not (self.fetched is None):#Mem fetch may delay
+                    self.icounter +=1
+                    self.fetched.ID = self.icounter
+                    self.fetched.fetch = self.Clock.time
+                    self.Records[self.icounter] = self.fetched
+        #Check halt
+        if self.halting:
+            return True
+        return False
 
 class Record:
     def __init__(self):
+        self.ID = -1
         self.instruction = None
         self.fetch = -1
         self.issue = -1
@@ -67,6 +103,8 @@ class Instruction:
             inst = L[1].strip()
         C = inst.split(' ')
         self.Op = C[0]
+        self.Unit = ''
+        self.Xtime = 0
         if self.Op == 'L.D':
             pass
         elif self.Op == 'S.D':
