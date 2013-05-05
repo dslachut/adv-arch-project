@@ -9,16 +9,16 @@ from copy import deepcopy
 
 class Scoreboard:
     def __init__(self, fu, reg, data, inst):
-        self.Mem = Memory(data, inst)
+        self.imm = Immediate()
+        self.Clock = Clock()
+        self.Mem = Memory(data, inst, self.Clock, self.imm)
         self.FU = Units(fu)
         self.Reg = Registers(reg)
-        self.Clock = Clock()
         self.Records = {}
         self.fetched = None
         self.halting = False
         self.halted = False
         self.icounter = 0
-        self.imm = Immediate()
 
     def Cycle(self):
         #Increment the clock and update the FU countdowns
@@ -147,8 +147,8 @@ class Scoreboard:
                     else:
                         issueto.op = self.fetched
                         issueto.busy = True
-                        issueto.src1 = issueto.op.src1
-                        issueto.src2 = issueto.op.src2
+                        issueto.src1 = issueto.op.instruction.src1
+                        issueto.src2 = issueto.op.instruction.src2
                         issueto.dest = dest
                         self.Reg.Reserve[dest] = self.fetched
                         self.fetched.issue = self.Clock.time
@@ -234,7 +234,7 @@ class Registers:
 
 
 class Instruction:
-    def __init__(self, inst):
+    def __init__(self, inst,imm):
         self.label = ''
         inst = inst.strip()
         self.inst = inst
@@ -245,18 +245,19 @@ class Instruction:
         C = inst.split(' ')
         self.Op = C[0]
         self.Unit = ''
-        self.Xtime = 0
         self.dest = None
         self.imm1 = 0
         self.imm2 = 0
-        if self.Op == 'L.D':
-            pass
-        elif self.Op == 'S.D':
-            pass
-        elif self.Op == 'LW':
-            pass
-        elif self.Op == 'SW':
-            pass
+        self.src1 = None
+        self.src2 = None
+        if self.Op == ['LW','L.D','SW','S.D']:
+            self.Unit = 'Int'
+            O = inst.split(',')
+            self.dest = O[0].strip()[-2:]
+            Os = O[1].strip().split('(')
+            self.imm1 = int(Os[0].strip())
+            self.src1 = imm
+            self.src2 = Os[1].strip()[0:2]
         elif self.Op == 'HLT':
             pass
         elif self.Op == 'J':
@@ -265,37 +266,43 @@ class Instruction:
             pass
         elif self.Op == 'BNE':
             pass
-        elif self.Op == 'DADD':
-            pass
-        elif self.Op == 'DADDI':
-            pass
-        elif self.Op == 'DSUB':
-            pass
-        elif self.Op == 'DSUBI':
-            pass
-        elif self.Op == 'AND':
-            pass
-        elif self.Op == 'ANDI':
-            pass
-        elif self.Op == 'OR':
-            pass
-        elif self.Op == 'ORI':
-            pass
-        elif self.Op == 'ADD.D':
-            pass
+        elif self.Op in ['DADD','DSUB','AND','OR']:
+            self.src2 = O[2].strip()
+            self.src1 = O[1].strip()
+            self.dest = O[0].strip()[-2:]
+            self.Unit = 'Int'
+        elif self.Op in ['DADDI','DSUBI','ANDI','ORI']:
+            self.src2 = imm
+            self.imm2 = int(O[2].strip())
+            self.src1 = O[1].strip()
+            self.dest = O[0].strip()[-2:]
+            self.Unit = 'Int'
+        elif self.Op in ['ADD.D','SUB.D']:
+            O = inst.split(',')
+            self.src2 = O[2].strip()
+            self.src1 = O[1].strip()
+            self.dest = O[0].strip()[-2:]
+            self.Unit = 'Add'
         elif self.Op == 'MUL.D':
-            pass
+            O = inst.split(',')
+            self.src2 = O[2].strip()
+            self.src1 = O[1].strip()
+            self.dest = O[0].strip()[-2:]
+            self.Unit = 'Mul'
         elif self.Op == 'DIV.D':
-            pass
-        elif self.Op == 'SUB.D':
-            pass
+            O = inst.split(',')
+            self.src2 = O[2].strip()
+            self.src1 = O[1].strip()
+            self.dest = O[0].strip()[-2:]
+            self.Unit = 'Div'
         else:
             raise Exception('Invalid Instruction', inst)
 
 
 class Memory:
-    def __init__(self, data, inst, clock):
+    def __init__(self, data, inst, clock, imm):
         self.Clock = clock
+        self.Imm = imm
         self.PC = 0
         self.iWaiting = 0
         self.iCache = [-1 for i in range(16)]  # 16 cached addresses
@@ -306,7 +313,7 @@ class Memory:
         self.iMem = []
         self.iLabels = {}
         for line in inst:
-            self.iMem.append(Instruction(line))
+            self.iMem.append(Instruction(line,self.Imm))
         for i,ins in self.iMem:
             if ins.label != '':
                 self.iLabels[ins.label] = i
