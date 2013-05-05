@@ -68,7 +68,9 @@ class Scoreboard:
                     self.halting = True
                     self.fetched = None
             else:
-                
+                issueto.op = self.fetched
+                issueto.busy = True
+                self.fetched.issue = self.Clock.time
         #Fetch
         if not self.halting:#Fetch if not halting
             if self.fetched is None:#If nothing waiting to issue
@@ -113,8 +115,8 @@ class FuncUnit:
         self.dest = None
         self.src1 = None
         self.src2 = None
-        self.red1 = True
-        self.red2 = True
+        self.red1 = False
+        self.red2 = False
         
 class Units:
     def __init__(self,FU):
