@@ -1,5 +1,5 @@
-from Scoreboard import Scoreboard
-from Memory import Memory
+from Scoreboard2 import Scoreboard
+#from Memory import Memory
 
 class Simulation:
     def __init__(self,instFname,dataFname,regFname,configFname):
@@ -19,8 +19,8 @@ class Simulation:
         with open(configFname) as FILE:
             for line in FILE:
                 FU.append(int(line))
-        self.memory = Memory(data,inst)
-        self.scoreboard = Scoreboard(FU,reg,self.memory)
+        #self.memory = Memory(data,inst)
+        self.scoreboard = Scoreboard(FU,reg,data,inst)
     
     def Run(self):
         done = False

@@ -16,6 +16,7 @@ class Scoreboard:
         self.halting = False
         self.halted = False
         self.icounter = 0
+        self.imm = Immediate()
     def Cycle(self):
         #Increment the clock and update the FU countdowns
         self.Clock.increment()
@@ -36,7 +37,11 @@ class Scoreboard:
         for U in self.FU.All:
             if U.op.read == -1:
                 if not U.red1:
-                    if U.src1.
+                    if U.src1 is None:
+                        U.red1 = True
+                    elif U.src1 is self.imm:
+                        U.red1 = True
+                        U.dat1 = U.op.imm1
         #Issue
         if not (self.fetched is None): #If there is a fetched instruction
             fu = self.fetched.instruction.Unit
@@ -173,6 +178,8 @@ class Instruction:
         self.Unit = ''
         self.Xtime = 0
         self.dest = None
+        self.imm1 = 0
+        self.imm2 = 0
         if self.Op == 'L.D':
             pass
         elif self.Op == 'S.D':
@@ -219,3 +226,7 @@ class Instruction:
 class Memory:
     def __init__(self,data,inst):
         pass
+    
+class Immediate:
+    def __init__(self):
+        self.val = True
