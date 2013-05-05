@@ -23,18 +23,26 @@ class Scoreboard:
         #Increment the clock and update the FU countdowns
         self.Clock.increment()
         self.Mem.Work()
-        if self.FU.Int.time > -1:
-            self.FU.Int.time -= 1
-        for i in len(self.FU.Add):
-            if self.FU.Add[i].time > -1:
-                self.FU.Add[i].time -= 1
-        for i in len(self.FU.Mul):
-            if self.FU.Mul[i].time > -1:
-                self.FU.Mul[i].time -= 1
-        for i in len(self.FU.Div):
-            if self.FU.Div[i].time > -1:
-                self.FU.Div[i].time -= 1
+        for U in self.FU.All:
+            if U.time > -1:
+                self.FU.Int.time -= 1
         #Writebacks
+        delres = []
+        for dest,U in self.Reg.Reserve:
+            if U.time == -1 and U.busy:
+                delres.append(dest)
+                U.op.write = self.Clock.time
+                dest = U.result
+                U.busy = False
+                U.red1 = False
+                U.red2 = False
+                U.dat1 = None
+                U.dat2 = None
+                U.dest = None
+                U.op = None
+                U.result = None
+                U.src1 = None
+                U.src2 = None
         #Executions
         for U in self.FU.All:
             if U.time == 0:
@@ -92,6 +100,8 @@ class Scoreboard:
                                 U.result = U.dat1 & U.dat2
                             elif U.op.instruction.Op in ['OR','ORI']:
                                 U.result = U.dat1 | U.dat2
+        while len(delres) > 0:
+            del self.Reg.Reserve[delres.pop()]
         #Issue
         if not (self.fetched is None):  # If there is a fetched instruct
             fu = self.fetched.instruction.Unit
@@ -145,7 +155,7 @@ class Scoreboard:
         #Fetch
         if not self.halting:  # Fetch if not halting
             if self.fetched is None:  # If nothing waiting to issue
-                self.fetched = self.Mem.fetch()  # Mem fetch returns a rec
+                self.fetched = self.Mem.Fetch()  # Mem fetch returns a rec
                 if not (self.fetched is None):  # Mem fetch may delay
                     self.icounter += 1
                     self.fetched.ID = self.icounter
@@ -283,7 +293,39 @@ class Instruction:
 
 
 class Memory:
-    def __init__(self, data, inst):
+    def __init__(self, data, inst, clock):
+        self.Clock = clock
+        self.PC = 0
+        self.iCache = [0,0,0,0,False]  # 4 cached addresses, 1 Valid bit
+        self.dCache = [{'valid':False, 'TLU':-1, 'mem':[0,0]},
+                       {'valid':False, 'TLU':-1, 'mem':[0,0]}
+                       ]
+        self.icreq = 0
+        self.ichit = 0
+        self.dcreq = 0
+        self.dchit = 0
+        self.iMem = []
+        self.iLabels = {}
+        for line in inst:
+            self.iMem.append(Instruction(line))
+        for i,ins in self.iMem:
+            if ins.label != '':
+                self.iLabels[ins.label] = i
+        self.dMem = [None for i in range(0x100)]
+        for val in data:
+            self.dMem.append(val)
+
+    def Fetch(self):
+        self.icreq += 1
+        if self.iCache[4]:
+            if self.PC in self.iCache[0:4]:
+                self.ichit += 1
+                return
+    
+    def Work(self):
+        pass
+    
+    def DataInst(self,U):
         pass
 
 
