@@ -36,12 +36,29 @@ class Scoreboard:
         #Reads
         for U in self.FU.All:
             if U.op.read == -1:
-                if not U.red1:
-                    if U.src1 is None:
-                        U.red1 = True
-                    elif U.src1 is self.imm:
-                        U.red1 = True
-                        U.dat1 = U.op.imm1
+                red = [U.red1,U.red2]
+                src = [U.src1,U.src2]
+                dat = [U.dat1,U.dat2]
+                imm = [U.op.imm1,U.op.imm2]
+                for x in range(2):
+                    if not red[x]:
+                        if src[x] is None:
+                            red[x] = True
+                        elif src[x] is self.imm:
+                            red[x] = True
+                            dat[x] = imm[x]
+                        else:
+                            if src[x] in self.Reg.Reserve:
+                                U.op.raw = True
+                            else:
+                                red[x] = True
+                                i = int(src[x][1:])
+                                if src[x][0] == 'F':
+                                    dat[x] = self.Reg.F[i]
+                                else:
+                                    dat[x] = self.Reg.R[i]
+                if U.red1 and U.red2:
+                    U.op.read = self.Clock.time
         #Issue
         if not (self.fetched is None): #If there is a fetched instruction
             fu = self.fetched.instruction.Unit
