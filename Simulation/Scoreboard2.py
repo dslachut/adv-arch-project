@@ -314,7 +314,7 @@ class Memory:
         for val in data:
             self.dMem.append(val)
         self.tasks = []
-        self.dCache = DCache(clock,self.dMem)
+        self.dCache = DCache(clock)#,self.dMem)
 
     def Fetch(self):
         if self.iWaiting == 2:
@@ -397,12 +397,12 @@ class Memory:
 
 
 class DCache:
-    def __init__(self,clock,mem):
+    def __init__(self,clock):#,mem):
         self.blocks = [[-1]*4]*4
         self.dirty = [False]*4
         self.TLU = [-1]*4
         self.Clock = clock
-        self.Mem = mem
+        #self.Mem = mem
     
     def replace(self, addr):
         time = 0
