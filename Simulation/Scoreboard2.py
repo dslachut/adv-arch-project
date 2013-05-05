@@ -34,7 +34,9 @@ class Scoreboard:
         #Executions
         #Reads
         for U in self.FU.All:
-            if U.op.read == -1
+            if U.op.read == -1:
+                if not U.red1:
+                    if U.src1.
         #Issue
         if not (self.fetched is None): #If there is a fetched instruction
             fu = self.fetched.instruction.Unit
@@ -79,6 +81,8 @@ class Scoreboard:
                     else:
                         issueto.op = self.fetched
                         issueto.busy = True
+                        issueto.src1 = issueto.op.src1
+                        issueto.src2 = issueto.op.src2
                         issueto.dest = dest
                         self.Reg.Reserve[dest] = self.fetched
                         self.fetched.issue = self.Clock.time
@@ -121,6 +125,8 @@ class FuncUnit:
         self.busy = False
         self.op   = None
         self.dest = None
+        self.dat1 = None
+        self.dat2 = None
         self.src1 = None
         self.src2 = None
         self.red1 = False
