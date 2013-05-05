@@ -33,6 +33,8 @@ class Scoreboard:
         #Writebacks
         #Executions
         #Reads
+        for U in self.FU.All:
+            if U.op.read == -1
         #Issue
         if not (self.fetched is None): #If there is a fetched instruction
             fu = self.fetched.instruction.Unit
@@ -93,11 +95,7 @@ class Scoreboard:
         #Check halt
         self.halted = self.halting and (self.fetched is None)
         self.halted = self.halted and (not self.FU.Int.busy)
-        for U in self.FU.Add:
-            self.halted = self.halted and (not U.busy)
-        for U in self.FU.Div:
-            self.halted = self.halted and (not U.busy)
-        for U in self.FU.Mul:
+        for U in self.FU.All:
             self.halted = self.halted and (not U.busy)
         self.halted = self.halted and (len(self.Reg.Reserve) == 0)
         #Return whether done
@@ -134,6 +132,14 @@ class Units:
         self.Add = [FuncUnit() for x in range(FU[0])]
         self.Mul = [FuncUnit() for x in range(FU[1])]
         self.Div = [FuncUnit() for x in range(FU[2])]
+        self.All = []
+        self.All.append(self.Int)
+        for U in self.Add:
+            self.All.append(U)
+        for U in self.Mul:
+            self.All.append(U)
+        for U in self.Div:
+            self.All.append(U)
 
 class Clock:
     def __init__(self):
