@@ -298,7 +298,7 @@ class Memory:
         self.Clock = clock
         self.PC = 0
         self.iWaiting = 0
-        self.iCache = [-1,-1,-1,-1]  # 4 cached addresses
+        self.iCache = [-1 for i in range(16)]  # 16 cached addresses
         self.dCache = [{'valid':False, 'TLU':-1, 'mem':[0,0]},
                        {'valid':False, 'TLU':-1, 'mem':[0,0]}
                        ]
@@ -328,7 +328,7 @@ class Memory:
             self.PC += 1
             return out
         self.icreq += 1
-        if self.PC in self.iCache[0:4]:
+        if self.PC in self.iCache:
             self.ichit += 1
             out = Record()
             out.instruction = deepcopy(self.iMem[self.PC])
@@ -338,7 +338,10 @@ class Memory:
             self.iWaiting = 2
             self.tasks.append(['ifetch',11])
             start = self.PC - (self.PC % 4)
-            self.iCache = range(start,start+4)
+            b = (self.PC % 16) - (self.PC % 4)
+            for x in range(start,start+4):
+                self.iCache[b] = x
+                b += 1
             return None
 
     def Work(self):
@@ -347,11 +350,23 @@ class Memory:
                 self.tasks[0][1] -= 1
                 if self.tasks[0][1] == 0:
                     self.iWaiting == 1
+                    self.tasks.remove(self.tasks[0])
             else:
                 pass
     
     def DataInst(self,U):
-        pass
+        self.dcreq += 1
+        op = U.op.instruction.Op
+        addr = U.dat1 + U.dat2
+        if op == 'LW':
+            U.result = self.dMem[addr]
+            U.
+        elif op == 'L.D':
+            pass
+        elif op == 'SW':
+            pass
+        elif op == 'S.D':
+            pass
 
 
 class Immediate:
