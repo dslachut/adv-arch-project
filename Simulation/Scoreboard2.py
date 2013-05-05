@@ -185,6 +185,21 @@ class Record:
         self.war = False
         self.waw = False
         self.struct = False
+    
+    def __str__(self):
+        outs = [self.instruction.inst]
+        if self.instruction.label == '':
+            outs.append('\t')
+        for t in [self.fetch,self.issue,self.read,self.execute,self.write]:
+            if t > -1:
+                outs.append(str(t))
+            else: outs.append('  ')
+        for h in [self.raw,self.war,self.waw,self.struct]:
+            if h:
+                outs.append('Y')
+            else:
+                outs.append('N')
+        return '\t'.join(outs)
 
 
 class FuncUnit:

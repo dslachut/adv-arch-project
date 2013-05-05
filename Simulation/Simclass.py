@@ -26,3 +26,17 @@ class Simulation:
         done = False
         while not done:
             done = self.scoreboard.Cycle()
+        with open('result.txt','w') as FILE:
+            for k in sorted(self.scoreboard.Records.iterkeys()):
+                FILE.write(str(self.scoreboard.Records[k]))
+                FILE.write('\n')
+            FILE.write('Total number of access requests ')
+            FILE.write('for instruction cache: ')
+            FILE.write(str(self.scoreboard.Mem.icreq))
+            FILE.write('\nNumber of instruction cache hits: ')
+            FILE.write(str(self.scoreboard.Mem.ichit))
+            FILE.write('\nTotal number of access requests for data cache: ')
+            FILE.write(str(self.scoreboard.Mem.dcreq))
+            FILE.write('\nNumber of data cache hits: ')
+            FILE.write(str(self.scoreboard.Mem.dchit))
+            FILE.write('\n')
