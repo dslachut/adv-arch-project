@@ -22,6 +22,7 @@ class Scoreboard:
     def Cycle(self):
         #Increment the clock and update the FU countdowns
         self.Clock.increment()
+        self.Mem.Work()
         if self.FU.Int.time > -1:
             self.FU.Int.time -= 1
         for i in len(self.FU.Add):
@@ -35,6 +36,9 @@ class Scoreboard:
                 self.FU.Div[i].time -= 1
         #Writebacks
         #Executions
+        for U in self.FU.All:
+            if U.time == 0:
+                U.op.execute = self.Clock.time
         #Reads
         for U in self.FU.All:
             if U.op.read == -1:
@@ -61,6 +65,33 @@ class Scoreboard:
                                     dat[x] = self.Reg.R[i]
                 if U.red1 and U.red2:
                     U.op.read = self.Clock.time
+                    if U in self.FU.Div:
+                        U.time = 50
+                        U.result = float(U.dat1) / float(U.dat2)
+                    if U in self.FU.Mul:
+                        U.time = 30
+                        U.result = float(U.dat1) * float(U.dat2)
+                    if U in self.FU.Add:
+                        U.time = 2
+                        if U.op.instruction.Op == 'SUB.D':
+                            U.result = float(U.dat1) - float(U.dat2)
+                        else:
+                            U.result = float(U.dat1) + float(U.dat2)
+                    if U is self.FU.Int:
+                        o = ['LW','SW','L.D','S.D']
+                        if U.op.instruction.Op in o:
+                            U.time = 100000
+                            self.Mem.DataInst(U)
+                        else:
+                            U.time = 1
+                            if U.op.instruction.Op in ['DADD','DADDI']:
+                                U.result = U.dat1 + U.dat2
+                            elif U.op.instruction.Op in ['DSUB','DSUBI']:
+                                U.result = U.dat1 - U.dat2
+                            elif U.op.instruction.Op in ['AND','ANDI']:
+                                U.result = U.dat1 & U.dat2
+                            elif U.op.instruction.Op in ['OR','ORI']:
+                                U.result = U.dat1 | U.dat2
         #Issue
         if not (self.fetched is None):  # If there is a fetched instruct
             fu = self.fetched.instruction.Unit
@@ -157,6 +188,7 @@ class FuncUnit:
         self.src2 = None
         self.red1 = False
         self.red2 = False
+        self.result = None
 
 
 class Units:
