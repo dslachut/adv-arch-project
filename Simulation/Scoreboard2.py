@@ -5,9 +5,10 @@ Created on Sat May  4 14:11:03 2013
 @author: david
 """
 
+
 class Scoreboard:
-    def __init__(self,fu,reg,data,inst):
-        self.Mem = Memory(data,inst)
+    def __init__(self, fu, reg, data, inst):
+        self.Mem = Memory(data, inst)
         self.FU = Units(fu)
         self.Reg = Registers(reg)
         self.Clock = Clock()
@@ -17,11 +18,12 @@ class Scoreboard:
         self.halted = False
         self.icounter = 0
         self.imm = Immediate()
+
     def Cycle(self):
         #Increment the clock and update the FU countdowns
         self.Clock.increment()
         if self.FU.Int.time > -1:
-           self.FU.Int.time -= 1
+            self.FU.Int.time -= 1
         for i in len(self.FU.Add):
             if self.FU.Add[i].time > -1:
                 self.FU.Add[i].time -= 1
@@ -36,10 +38,10 @@ class Scoreboard:
         #Reads
         for U in self.FU.All:
             if U.op.read == -1:
-                red = [U.red1,U.red2]
-                src = [U.src1,U.src2]
-                dat = [U.dat1,U.dat2]
-                imm = [U.op.imm1,U.op.imm2]
+                red = [U.red1, U.red2]
+                src = [U.src1, U.src2]
+                dat = [U.dat1, U.dat2]
+                imm = [U.op.imm1, U.op.imm2]
                 for x in range(2):
                     if not red[x]:
                         if src[x] is None:
@@ -60,10 +62,10 @@ class Scoreboard:
                 if U.red1 and U.red2:
                     U.op.read = self.Clock.time
         #Issue
-        if not (self.fetched is None): #If there is a fetched instruction
+        if not (self.fetched is None):  # If there is a fetched instruct
             fu = self.fetched.instruction.Unit
-            issueto = None #Figure out which FU the instruction needs
-            if fu == 'Int': 
+            issueto = None  # Figure out which FU the instruction needs
+            if fu == 'Int':
                 issueto = self.FU.Int
             elif fu == 'Add':
                 for U in self.FU.Add:
@@ -85,7 +87,7 @@ class Scoreboard:
             elif fu == 'HLT':
                 pass
             if issueto is None:
-                if not (fu in ['J','HLT']):
+                if not (fu in ['J', 'HLT']):
                     self.fetched.struct = True
                 elif fu == 'J':
                     pass
@@ -93,7 +95,7 @@ class Scoreboard:
                     self.fetched.issue = self.Clock.time
                     self.halting = True
                     self.fetched = None
-            else: #See if the destination is free
+            else:  # See if the destination is free
                 dest = self.fetched.instruction.dest
                 if dest is None:
                     pass
@@ -110,11 +112,11 @@ class Scoreboard:
                         self.fetched.issue = self.Clock.time
                         self.fetched = None
         #Fetch
-        if not self.halting:#Fetch if not halting
-            if self.fetched is None:#If nothing waiting to issue
-                self.fetched = self.Mem.fetch()#Mem fetch returns a record
-                if not (self.fetched is None):#Mem fetch may delay
-                    self.icounter +=1
+        if not self.halting:  # Fetch if not halting
+            if self.fetched is None:  # If nothing waiting to issue
+                self.fetched = self.Mem.fetch()  # Mem fetch returns a rec
+                if not (self.fetched is None):  # Mem fetch may delay
+                    self.icounter += 1
                     self.fetched.ID = self.icounter
                     self.fetched.fetch = self.Clock.time
                     self.Records[self.icounter] = self.fetched
@@ -126,6 +128,7 @@ class Scoreboard:
         self.halted = self.halted and (len(self.Reg.Reserve) == 0)
         #Return whether done
         return self.halted
+
 
 class Record:
     def __init__(self):
@@ -141,11 +144,12 @@ class Record:
         self.waw = False
         self.struct = False
 
+
 class FuncUnit:
     def __init__(self):
         self.time = -1
         self.busy = False
-        self.op   = None
+        self.op = None
         self.dest = None
         self.dat1 = None
         self.dat2 = None
@@ -153,9 +157,10 @@ class FuncUnit:
         self.src2 = None
         self.red1 = False
         self.red2 = False
-        
+
+
 class Units:
-    def __init__(self,FU):
+    def __init__(self, FU):
         self.Int = FuncUnit()
         self.Add = [FuncUnit() for x in range(FU[0])]
         self.Mul = [FuncUnit() for x in range(FU[1])]
@@ -169,20 +174,24 @@ class Units:
         for U in self.Div:
             self.All.append(U)
 
+
 class Clock:
     def __init__(self):
         self.time = 0
+
     def increment(self):
         self.time += 1
 
+
 class Registers:
-    def __init__(self,reg):
+    def __init__(self, reg):
         self.R = reg
         self.F = [0 for x in range(32)]
         self.Reserve = {}
 
+
 class Instruction:
-    def __init__(self,inst):
+    def __init__(self, inst):
         self.label = ''
         inst = inst.strip()
         self.inst = inst
@@ -238,12 +247,14 @@ class Instruction:
         elif self.Op == 'SUB.D':
             pass
         else:
-            raise Exception('Invalid Instruction',inst)
-            
+            raise Exception('Invalid Instruction', inst)
+
+
 class Memory:
-    def __init__(self,data,inst):
+    def __init__(self, data, inst):
         pass
-    
+
+
 class Immediate:
     def __init__(self):
         self.val = True
