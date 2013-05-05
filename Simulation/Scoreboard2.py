@@ -34,9 +34,9 @@ class Scoreboard:
         #Executions
         #Reads
         #Issue
-        if not (self.fetched is None):
+        if not (self.fetched is None): #If there is a fetched instruction
             fu = self.fetched.instruction.Unit
-            issueto = None
+            issueto = None #Figure out which FU the instruction needs
             if fu == 'Int': 
                 issueto = self.FU.Int
             elif fu == 'Add':
@@ -67,10 +67,18 @@ class Scoreboard:
                     self.fetched.issue = self.Clock.time
                     self.halting = True
                     self.fetched = None
-            else:
-                issueto.op = self.fetched
-                issueto.busy = True
-                self.fetched.issue = self.Clock.time
+            else: #See if the destination is free
+                dest = self.fetched.instruction.dest
+                if dest is None:
+                    pass
+                else:
+                    if dest in self.Reg.Reserve:
+                        
+                    else:
+                        issueto.op = self.fetched
+                        issueto.busy = True
+                        self.fetched.issue = self.Clock.time
+                        self.fetched = None
         #Fetch
         if not self.halting:#Fetch if not halting
             if self.fetched is None:#If nothing waiting to issue
@@ -150,6 +158,7 @@ class Instruction:
         self.Op = C[0]
         self.Unit = ''
         self.Xtime = 0
+        self.dest = None
         if self.Op == 'L.D':
             pass
         elif self.Op == 'S.D':
