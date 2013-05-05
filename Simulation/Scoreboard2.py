@@ -297,8 +297,8 @@ class Memory:
     def __init__(self, data, inst, clock):
         self.Clock = clock
         self.PC = 0
-        self.iWaiting = False
-        self.iCache = [0,0,0,0,False]  # 4 cached addresses, 1 Valid bit
+        self.iWaiting = 0
+        self.iCache = [-1,-1,-1,-1]  # 4 cached addresses
         self.dCache = [{'valid':False, 'TLU':-1, 'mem':[0,0]},
                        {'valid':False, 'TLU':-1, 'mem':[0,0]}
                        ]
@@ -316,24 +316,39 @@ class Memory:
         self.dMem = [None for i in range(0x100)]
         for val in data:
             self.dMem.append(val)
-        self.tasks
+        self.tasks = []
 
     def Fetch(self):
-        if self.iWaiting:
+        if self.iWaiting == 2:
             return None
+        elif self.iWaiting == 1:
+            self.iWaiting = 0
+            out = Record()
+            out.instruction = deepcopy(self.iMem[self.PC])
+            self.PC += 1
+            return out
         self.icreq += 1
-        if self.iCache[4]:
-            if self.PC in self.iCache[0:4]:
-                self.ichit += 1
-                out = Record()
-                out.instruction = deepcopy(self.iMem[self.PC])
-                self.PC += 1
-                return out
-                
-                
-    
+        if self.PC in self.iCache[0:4]:
+            self.ichit += 1
+            out = Record()
+            out.instruction = deepcopy(self.iMem[self.PC])
+            self.PC += 1
+            return out
+        else:
+            self.iWaiting = 2
+            self.tasks.append(['ifetch',11])
+            start = self.PC - (self.PC % 4)
+            self.iCache = range(start,start+4)
+            return None
+
     def Work(self):
-        pass
+        if len(self.tasks) > 0:
+            if self.tasks[0][0] == 'ifetch':
+                self.tasks[0][1] -= 1
+                if self.tasks[0][1] == 0:
+                    self.iWaiting == 1
+            else:
+                pass
     
     def DataInst(self,U):
         pass
