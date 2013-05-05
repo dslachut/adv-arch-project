@@ -34,6 +34,41 @@ class Scoreboard:
         #Executions
         #Reads
         #Issue
+        if not (self.fetched is None):
+            fu = self.fetched.instruction.Unit
+            issueto = None
+            if fu == 'Int': 
+                issueto = self.FU.Int
+            elif fu == 'Add':
+                for U in self.FU.Add:
+                    if not U.busy:
+                        issueto = U
+                        break
+            elif fu == 'Mul':
+                for U in self.FU.Mul:
+                    if not U.busy:
+                        issueto = U
+                        break
+            elif fu == 'Div':
+                for U in self.FU.Div:
+                    if not U.busy:
+                        issueto = U
+                        break
+            elif fu == 'J':
+                pass
+            elif fu == 'HLT':
+                pass
+            if issueto is None:
+                if not (fu in ['J','HLT']):
+                    self.fetched.struct = True
+                elif fu == 'J':
+                    pass
+                elif fu == 'HLT':
+                    self.fetched.issue = self.Clock.time
+                    self.halting = True
+                    self.fetched = None
+            else:
+                
         #Fetch
         if not self.halting:#Fetch if not halting
             if self.fetched is None:#If nothing waiting to issue
@@ -43,7 +78,7 @@ class Scoreboard:
                     self.fetched.ID = self.icounter
                     self.fetched.fetch = self.Clock.time
                     self.Records[self.icounter] = self.fetched
-        #Check halt        
+        #Check halt
         self.halted = self.halting and (self.fetched is None)
         self.halted = self.halted and (not self.FU.Int.busy)
         for U in self.FU.Add:
@@ -53,7 +88,7 @@ class Scoreboard:
         for U in self.FU.Mul:
             self.halted = self.halted and (not U.busy)
         self.halted = self.halted and (len(self.Reg.Reserve) == 0)
-        
+        #Return whether done
         return self.halted
 
 class Record:
@@ -113,7 +148,6 @@ class Instruction:
         self.Op = C[0]
         self.Unit = ''
         self.Xtime = 0
-        self.FU = None
         if self.Op == 'L.D':
             pass
         elif self.Op == 'S.D':
