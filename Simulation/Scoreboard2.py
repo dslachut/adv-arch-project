@@ -4,6 +4,7 @@ Created on Sat May  4 14:11:03 2013
 
 @author: david
 """
+from copy import deepcopy
 
 
 class Scoreboard:
@@ -296,6 +297,7 @@ class Memory:
     def __init__(self, data, inst, clock):
         self.Clock = clock
         self.PC = 0
+        self.iWaiting = False
         self.iCache = [0,0,0,0,False]  # 4 cached addresses, 1 Valid bit
         self.dCache = [{'valid':False, 'TLU':-1, 'mem':[0,0]},
                        {'valid':False, 'TLU':-1, 'mem':[0,0]}
@@ -314,13 +316,21 @@ class Memory:
         self.dMem = [None for i in range(0x100)]
         for val in data:
             self.dMem.append(val)
+        self.tasks
 
     def Fetch(self):
+        if self.iWaiting:
+            return None
         self.icreq += 1
         if self.iCache[4]:
             if self.PC in self.iCache[0:4]:
                 self.ichit += 1
-                return
+                out = Record()
+                out.instruction = deepcopy(self.iMem[self.PC])
+                self.PC += 1
+                return out
+                
+                
     
     def Work(self):
         pass
