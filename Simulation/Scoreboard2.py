@@ -299,9 +299,6 @@ class Memory:
         self.PC = 0
         self.iWaiting = 0
         self.iCache = [-1 for i in range(16)]  # 16 cached addresses
-        self.dCache = [{'valid':False, 'TLU':-1, 'mem':[0,0]},
-                       {'valid':False, 'TLU':-1, 'mem':[0,0]}
-                       ]
         self.icreq = 0
         self.ichit = 0
         self.dcreq = 0
@@ -317,6 +314,7 @@ class Memory:
         for val in data:
             self.dMem.append(val)
         self.tasks = []
+        self.dCache = DCache(clock,self.dMem)
 
     def Fetch(self):
         if self.iWaiting == 2:
@@ -352,22 +350,87 @@ class Memory:
                     self.iWaiting == 1
                     self.tasks.remove(self.tasks[0])
             else:
-                pass
+                self.tasks[0][1] -= 1
+                if self.tasks[0][1] == 0:
+                    self.tasks.remove(self.tasks[0])
     
     def DataInst(self,U):
-        self.dcreq += 1
         op = U.op.instruction.Op
         addr = U.dat1 + U.dat2
         if op == 'LW':
+            outTime = 1
+            self.dcreq += 1
             U.result = self.dMem[addr]
-            U.
+            if self.dCache.hit(addr):
+                outTime +=1
+                self.dchit += 1
+            else:
+                busTime = self.dCache.replace(addr)
+                outTime += busTime
+                self.tasks.append(['dfetch',busTime])
+                U.time = outTime
         elif op == 'L.D':
-            pass
+            self.dcreq += 2
+            outTime = 1
+            busTime = 0
+            U.result = int(bin(self.dMem[addr])+bin(self.dMem[addr+1]),2)
+            if self.dCache.hit(addr):
+                outTime += 1
+                self.dchit += 1
+            else:
+                busTime = self.dCache.replace(addr)
+                outTime += busTime
+                self.tasks.append(['dfetch',busTime])
+            if self.dCache.hit(addr+1):
+                if busTime == 0:
+                    outTime += 1
+                    self.dchit += 1
+            else:
+                busTime = self.dCache.replace(addr+1)
+                outTime += busTime
+                self.tasks.append(['dfetch',busTime])
+            U.time = outTime
         elif op == 'SW':
             pass
         elif op == 'S.D':
             pass
 
+
+class DCache:
+    def __init__(self,clock,mem):
+        self.blocks = [[-1]*4]*4
+        self.dirty = [False]*4
+        self.TLU = [-1]*4
+        self.Clock = clock
+        self.Mem = mem
+    
+    def replace(self, addr):
+        time = 0
+        repl = -1
+        # Pick cache block
+        assoc = (addr % 8) / 4
+        if self.TLU[assoc] > self.TLU[assoc+2]:
+            repl = assoc + 2
+        else: 
+            repl = assoc
+        # If dirty, write it back
+        if self.dirty[repl]:
+            time += 12
+        # Read in new data
+        blockstart = addr - (addr % 4)
+        self.blocks[repl] = range(blockstart,blockstart+4)
+        time += 12
+        # Mark clean
+        self.dirty[repl] = False
+        self.TLU[repl] = self.Clock.time + time
+        return time
+    
+    def hit(self, addr):
+        for i,block in enumerate(self.blocks):
+            if addr in block:
+                self.TLU[i] = self.Clock.time
+                return True
+        return False
 
 class Immediate:
     def __init__(self):
