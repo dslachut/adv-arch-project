@@ -73,10 +73,12 @@ class Scoreboard:
                     pass
                 else:
                     if dest in self.Reg.Reserve:
-                        
+                        self.fetched.waw = True
                     else:
                         issueto.op = self.fetched
                         issueto.busy = True
+                        issueto.dest = dest
+                        self.Reg.Reserve[dest] = self.fetched
                         self.fetched.issue = self.Clock.time
                         self.fetched = None
         #Fetch
