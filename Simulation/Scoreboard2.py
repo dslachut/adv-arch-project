@@ -30,13 +30,14 @@ class Scoreboard:
                 self.FU.Int.time -= 1
         #Writebacks
         delres = []
+        notbusy = []
         for dest,U in self.Reg.Reserve.iteritems():
             #print dest,'/', U
             if U.time == -1 and U.busy and U.red1 and U.red2:
                 delres.append(dest)
                 U.op.write = self.Clock.time
                 dest = U.result
-                U.busy = False
+                notbusy.append(U)
                 U.red1 = False
                 U.red2 = False
                 U.dat1 = None
@@ -192,6 +193,8 @@ class Scoreboard:
                         self.fetched = None
                         print issueto.op.ID, issueto.op.instruction.Op, 
                         print self.Clock.time, 'I'
+        for U in notbusy:
+            U.busy = False
         #Fetch
         if not self.halting:  # Fetch if not halting
             if self.fetched is None:  # If nothing waiting to issue
