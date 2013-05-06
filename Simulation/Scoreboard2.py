@@ -27,7 +27,7 @@ class Scoreboard:
         self.Mem.Work()
         for U in self.FU.All:
             if U.time > -1:
-                self.FU.Int.time -= 1
+                U.time -= 1
         #Writebacks
         delres = []
         notbusy = []
@@ -53,6 +53,8 @@ class Scoreboard:
             if U.time == 0:
                 U.op.execute = self.Clock.time
                 print U.op.ID, U.op.instruction.Op, U.op.execute, 'X'
+            #elif U.op is not None:
+            #    print U.time, U.op.instruction.Op
         #Reads
         for U in self.FU.All:
             #print U.op, '!'
@@ -73,7 +75,8 @@ class Scoreboard:
                         U.dat1 = imm[0]
                     else:
                         #print src[x]
-                        if U.src1 in self.Reg.Reserve:
+                        if (U.src1 in self.Reg.Reserve) and \
+                        not (self.Reg.Reserve[U.src1] == U):
                             U.op.raw = True
                             #print '!'
                         else:
@@ -84,7 +87,7 @@ class Scoreboard:
                             else:
                                 U.dat1 = self.Reg.R[i]
                 if not U.red2:
-                    print U.src2
+                    #print U.src2
                     if U.src2 is None:
                         U.red2 = True
                     elif self.imm.__eq__(U.src2):
@@ -93,7 +96,8 @@ class Scoreboard:
                         U.dat2 = imm[1]
                     else:
                         #print src[x]
-                        if U.src2 in self.Reg.Reserve:
+                        if (U.src2 in self.Reg.Reserve) and \
+                        not (self.Reg.Reserve[U.src2] == U):
                             U.op.raw = True
                             #print '!'
                         else:
@@ -136,8 +140,6 @@ class Scoreboard:
                                 U.result = U.dat1 & U.dat2
                             elif U.op.instruction.Op in ['OR','ORI']:
                                 U.result = U.dat1 | U.dat2
-        while len(delres) > 0:
-            del self.Reg.Reserve[delres.pop()]
         #Issue
         if not (self.fetched is None):  # If there is a fetched instruct
             fu = self.fetched.instruction.Unit
@@ -165,6 +167,9 @@ class Scoreboard:
                 pass
             elif fu == 'HLT':
                 pass
+            elif fu in ['BNE','BEQ']:
+                if not self.FU.Bra.busy:
+                    issueto = self.Bra
             if issueto is None:
                 if not (fu in ['J', 'HLT']):
                     self.fetched.struct = True
@@ -195,6 +200,8 @@ class Scoreboard:
                         print self.Clock.time, 'I'
         for U in notbusy:
             U.busy = False
+        while len(delres) > 0:
+            del self.Reg.Reserve[delres.pop()]
         #Fetch
         if not self.halting:  # Fetch if not halting
             if self.fetched is None:  # If nothing waiting to issue
@@ -308,6 +315,7 @@ class Instruction:
         self.imm2 = 0
         self.src1 = None
         self.src2 = None
+        self.target = None
         #print "'",self.Op,"'"
         if self.Op in ['LW','L.D','SW','S.D']:
             self.Unit = 'Int'
@@ -321,10 +329,12 @@ class Instruction:
             self.Unit = 'HLT'
         elif self.Op == 'J':
             pass
-        elif self.Op == 'BEQ':
-            pass
-        elif self.Op == 'BNE':
-            pass
+        elif self.Op in ['BEQ','BNE']:
+            O = inst.split(',')
+            self.target = O[2].strip()
+            self.src2 = O[1].strip()
+            self.src1 = O[0].strip()[-2:]
+            self.Unit = self.Op
         elif self.Op in ['DADD','DSUB','AND','OR']:
             O = inst.split(',')
             self.src2 = O[2].strip()
@@ -401,9 +411,16 @@ class Memory:
             self.PC += 1
             return out
         else:
-            print 'miss'
+            #print 'miss'
             self.iWaiting = 2
-            self.tasks.append(['ifetch',11])
+            #print self.Clock.time, '!!!'
+            if (len(self.tasks) > 0)and(self.tasks[0][2]>=self.Clock.time):
+                self.tasks = [['ifetch',11,self.Clock.time]] + self.tasks
+                for task in self.tasks:
+                    if task[0] == 'dfetch':
+                        task[3].time += 11
+            else:
+                self.tasks.append(['ifetch',11,self.Clock.time])
             start = self.PC - (self.PC % 4)
             b = (self.PC % 16) - (self.PC % 4)
             for x in range(start,start+4):
@@ -438,7 +455,7 @@ class Memory:
             else:
                 busTime = self.dCache.replace(addr)
                 outTime += busTime
-                self.tasks.append(['dfetch',busTime])
+                self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
                 U.time = outTime
         elif op == 'L.D':
             self.dcreq += 2
@@ -452,7 +469,7 @@ class Memory:
             else:
                 busTime = self.dCache.replace(addr)
                 outTime += busTime
-                self.tasks.append(['dfetch',busTime])
+                self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
             if self.dCache.hit(addr+1):
                 if busTime == 0:
                     outTime += 1
@@ -460,8 +477,9 @@ class Memory:
             else:
                 busTime = self.dCache.replace(addr+1)
                 outTime += busTime
-                self.tasks.append(['dfetch',busTime])
+                self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
             U.time = outTime
+            #print self.Clock.time, '!!'
         elif op == 'SW':
             pass
         elif op == 'S.D':

@@ -29,8 +29,11 @@ class Simulation:
     def Run(self,fname='result.txt'):
         print 'Running simulation'
         done = False
-        while not done:
-            done = self.scoreboard.Cycle()
+        try:
+            while not done:
+                done = self.scoreboard.Cycle()
+        except KeyboardInterrupt:
+            print self.scoreboard.Clock.time
         with open(fname,'w') as FILE:
             FILE.write('Instruction;Fetch;Issue;Read;Exec;Write;')
             FILE.write('RAW;WAR;WAW;Struct\n')
