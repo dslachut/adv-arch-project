@@ -41,13 +41,13 @@ class Scoreboard:
             #print dest,'/', U
             if U.time == -1 and U.busy and U.red1 and U.red2:
                 if U.op.instruction.Op in \
-                ['LW','SW','DADD','DADDI','DSUB','DSUBI',
+                ['LW','DADD','DADDI','DSUB','DSUBI',
                  'AND','ANDI','OR','ORI']:
                      regnum = int(U.dest[1:])
                      self.Reg.R[regnum] = U.result
                 delres.append(dest)
                 U.op.write = self.Clock.time
-                dest = U.result
+                #dest = U.result
                 notbusy.append(U)
                 U.red1 = False
                 U.red2 = False
@@ -249,7 +249,7 @@ class Scoreboard:
                     (dest in self.Reg.Reserve) and \
                     not (fu in ['S.D','SW']):
                     #if dest in self.Reg.Reserve:
-                        if fu == 'BNE': print dest
+                        #if fu == 'BNE': print dest
                         self.fetched.waw = True
                     else:
                         issueto.op = self.fetched
@@ -611,6 +611,10 @@ class DCache:
                 self.TLU[i] = self.Clock.time
                 return True
         return False
+
+class StoreDest:
+    def __init__(self):
+        self.val = "I am a Dummy Object, AMA!"
 
 class Immediate:
     def __init__(self):
