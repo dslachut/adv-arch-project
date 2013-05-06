@@ -8,4 +8,5 @@ GG: L.D F1, 4(R4)
     DADDI R4, R4, 2
     DADDI R5, R5, 2
     DSUB R1, R1, R2
+    BNE R1, R3, GG
     HLT

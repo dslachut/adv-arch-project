@@ -18,7 +18,13 @@ class Scoreboard:
         self.fetched = None
         self.halting = False
         self.halted = False
+        self.stalled = False
         self.icounter = 0
+    
+    def Flush(self):
+        self.halted = False
+        self.halting = False
+        self.fetched = None
 
     def Cycle(self):
         #Increment the clock and update the FU countdowns
@@ -56,6 +62,51 @@ class Scoreboard:
             #elif U.op is not None:
             #    print U.time, U.op.instruction.Op
         #Reads
+        if self.FU.Bra.op is None:
+            pass
+        else:
+            U = self.FU.Bra
+            if U.op.read == -1:
+                if not U.red1:
+                    if U.src1 in self.Reg.Reserve:
+                        U.op.raw = True
+                    else:
+                        U.red1 = True
+                        i = int(U.src1[1:])
+                        if U.src1[0] == 'F':
+                            U.dat1 = self.Reg.F[i]
+                        else:
+                            U.dat1 = self.Reg.R[i]
+                if not U.red2:
+                    if U.src2 in self.Reg.Reserve:
+                        U.op.raw = True
+                    else:
+                        U.red2 = True
+                        i = int(U.src2[1:])
+                        if U.src2[0] == 'F':
+                            U.dat2 = self.Reg.F[i]
+                        else:
+                            U.dat2 = self.Reg.R[i]
+                if U.red1 and U.red2:
+                    U.op.read = self.Clock.time
+                    print U.op.ID, U.op.instruction.Op, U.op.read, 'R'
+                    if ((U.op.instruction.Op=='BNE') and \
+                    (U.dat1!=U.dat2)) or ((U.op.instruction.Op=='BEQ') \
+                    and (U.dat1==U.dat2)):
+                        self.Mem.Retarget(U.op.instruction.target)
+                        self.Flush()
+                    self.stalled = False
+                    notbusy.append(U)
+                    U.red1 = False
+                    U.red2 = False
+                    U.dat1 = None
+                    U.dat2 = None
+                    U.dest = None
+                    U.op = None
+                    U.result = None
+                    U.src1 = None
+                    U.src2 = None
+                    U.time = -1
         for U in self.FU.All:
             #print U.op, '!'
             if U.op is None:
@@ -141,7 +192,7 @@ class Scoreboard:
                             elif U.op.instruction.Op in ['OR','ORI']:
                                 U.result = U.dat1 | U.dat2
         #Issue
-        if not (self.fetched is None):  # If there is a fetched instruct
+        if not (self.fetched is None) and not self.stalled:
             fu = self.fetched.instruction.Unit
             #print fu
             issueto = None  # Figure out which FU the instruction needs
@@ -169,7 +220,8 @@ class Scoreboard:
                 pass
             elif fu in ['BNE','BEQ']:
                 if not self.FU.Bra.busy:
-                    issueto = self.Bra
+                    issueto = self.FU.Bra
+                    
             if issueto is None:
                 if not (fu in ['J', 'HLT']):
                     self.fetched.struct = True
@@ -182,9 +234,10 @@ class Scoreboard:
             else:  # See if the destination is free
                 dest = self.fetched.instruction.dest
                 #print issueto
-                if dest is None:
+                if dest is None and not (fu in ['BNE','BEQ']):
                     pass
                 else:
+                   #if (not (dest is None)) and (dest in self.Reg.Reserve):
                     if dest in self.Reg.Reserve:
                         self.fetched.waw = True
                     else:
@@ -203,7 +256,7 @@ class Scoreboard:
         while len(delres) > 0:
             del self.Reg.Reserve[delres.pop()]
         #Fetch
-        if not self.halting:  # Fetch if not halting
+        if not self.halting and not self.stalled:  # Fetch if not halting
             if self.fetched is None:  # If nothing waiting to issue
                 self.fetched = self.Mem.Fetch()  # Mem fetch returns a rec
                 if not (self.fetched is None):  # Mem fetch may delay
@@ -269,6 +322,7 @@ class FuncUnit:
 
 class Units:
     def __init__(self, FU):
+        self.Bra = FuncUnit()
         self.Int = FuncUnit()
         self.Add = [FuncUnit() for x in range(FU[0])]
         self.Mul = [FuncUnit() for x in range(FU[1])]
@@ -393,6 +447,7 @@ class Memory:
             self.dMem.append(val)
         self.tasks = []
         self.dCache = DCache(clock)#,self.dMem)
+        self.adjust = []
 
     def Fetch(self):
         if self.iWaiting == 2:
@@ -427,6 +482,10 @@ class Memory:
                 self.iCache[b] = x
                 b += 1
             return None
+    
+    def Retarget(self,label):
+        if label in self.iLabels:
+            self.adjust.append(self.iLabels[label])
 
     def Work(self):
         #print 'memwork', len(self.tasks)
@@ -440,6 +499,10 @@ class Memory:
                 self.tasks[0][1] -= 1
                 if self.tasks[0][1] == 0:
                     self.tasks.remove(self.tasks[0])
+        if len(self.adjust) > 0:
+            self.PC = self.adjust[0]
+            self.adjust.remove(self.adjust[0])
+            print self.PC
     
     def DataInst(self,U):
         op = U.op.instruction.Op
