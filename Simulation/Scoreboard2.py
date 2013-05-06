@@ -40,6 +40,11 @@ class Scoreboard:
         for dest,U in self.Reg.Reserve.iteritems():
             #print dest,'/', U
             if U.time == -1 and U.busy and U.red1 and U.red2:
+                if U.op.instruction.Op in \
+                ['LW','SW','DADD','DADDI','DSUB','DSUBI',
+                 'AND','ANDI','OR','ORI']:
+                     regnum = int(U.dest[1:])
+                     self.Reg.R[regnum] = U.result
                 delres.append(dest)
                 U.op.write = self.Clock.time
                 dest = U.result
@@ -58,7 +63,7 @@ class Scoreboard:
         for U in self.FU.All:
             if U.time == 0:
                 U.op.execute = self.Clock.time
-                print U.op.ID, U.op.instruction.Op, U.op.execute, 'X'
+                #print U.op.ID, U.op.instruction.Op, U.op.execute, 'X'
             #elif U.op is not None:
             #    print U.time, U.op.instruction.Op
         #Reads
@@ -89,14 +94,15 @@ class Scoreboard:
                             U.dat2 = self.Reg.R[i]
                 if U.red1 and U.red2:
                     U.op.read = self.Clock.time
-                    print U.op.ID, U.op.instruction.Op, U.op.read, 'R'
+                    #print U.op.ID, U.op.instruction.Op, U.op.read, 'R'
                     if ((U.op.instruction.Op=='BNE') and \
                     (U.dat1!=U.dat2)) or ((U.op.instruction.Op=='BEQ') \
                     and (U.dat1==U.dat2)):
                         self.Mem.Retarget(U.op.instruction.target)
                         self.Flush()
-                    self.stalled = False
+                    #self.stalled = False
                     notbusy.append(U)
+                    delres.append(U.dest)
                     U.red1 = False
                     U.red2 = False
                     U.dat1 = None
@@ -162,7 +168,7 @@ class Scoreboard:
                     #print U.op.read
                     #print U.dat1, U.dat2
                     U.op.read = self.Clock.time
-                    print U.op.ID, U.op.instruction.Op, U.op.read, 'R'
+                    #print U.op.ID, U.op.instruction.Op, U.op.read, 'R'
                     #print U.op.read
                     if U in self.FU.Div:
                         U.time = 50
@@ -185,6 +191,7 @@ class Scoreboard:
                             U.time = 1
                             if U.op.instruction.Op in ['DADD','DADDI']:
                                 U.result = U.dat1 + U.dat2
+                                print U.result
                             elif U.op.instruction.Op in ['DSUB','DSUBI']:
                                 U.result = U.dat1 - U.dat2
                             elif U.op.instruction.Op in ['AND','ANDI']:
@@ -192,7 +199,7 @@ class Scoreboard:
                             elif U.op.instruction.Op in ['OR','ORI']:
                                 U.result = U.dat1 | U.dat2
         #Issue
-        if not (self.fetched is None) and not self.stalled:
+        if not (self.fetched is None):# and not self.stalled:
             fu = self.fetched.instruction.Unit
             #print fu
             issueto = None  # Figure out which FU the instruction needs
@@ -215,13 +222,14 @@ class Scoreboard:
                         issueto = U
                         break
             elif fu == 'J':
-                pass
+                self.Mem.Retarget(self.fetched.instruction.target)
+                self.stalled = True
+                self.fetched = None
             elif fu == 'HLT':
                 pass
             elif fu in ['BNE','BEQ']:
                 if not self.FU.Bra.busy:
                     issueto = self.FU.Bra
-                    
             if issueto is None:
                 if not (fu in ['J', 'HLT']):
                     self.fetched.struct = True
@@ -234,11 +242,14 @@ class Scoreboard:
             else:  # See if the destination is free
                 dest = self.fetched.instruction.dest
                 #print issueto
-                if dest is None and not (fu in ['BNE','BEQ']):
+                if dest is None and not (fu in ['BNE','BEQ','S.D','SW']):
                     pass
                 else:
-                   #if (not (dest is None)) and (dest in self.Reg.Reserve):
-                    if dest in self.Reg.Reserve:
+                    if (not (dest is None)) and \
+                    (dest in self.Reg.Reserve) and \
+                    not (fu in ['S.D','SW']):
+                    #if dest in self.Reg.Reserve:
+                        if fu == 'BNE': print dest
                         self.fetched.waw = True
                     else:
                         issueto.op = self.fetched
@@ -249,12 +260,8 @@ class Scoreboard:
                         self.Reg.Reserve[dest] = issueto
                         self.fetched.issue = self.Clock.time
                         self.fetched = None
-                        print issueto.op.ID, issueto.op.instruction.Op, 
-                        print self.Clock.time, 'I'
-        for U in notbusy:
-            U.busy = False
-        while len(delres) > 0:
-            del self.Reg.Reserve[delres.pop()]
+                        #print issueto.op.ID, issueto.op.instruction.Op, 
+                        #print self.Clock.time, 'I'
         #Fetch
         if not self.halting and not self.stalled:  # Fetch if not halting
             if self.fetched is None:  # If nothing waiting to issue
@@ -266,12 +273,19 @@ class Scoreboard:
                     self.Records[self.icounter] = self.fetched
                     print self.fetched.ID, self.fetched.instruction.Op, 
                     print self.Clock.time, 'F'
+        #Bookeeping
+        for U in notbusy:
+            U.busy = False
+        while len(delres) > 0:
+            del self.Reg.Reserve[delres.pop()]       
+        #if self.FU.Bra.busy: self.stalled = True
+        self.stalled = self.FU.Bra.busy
         #Check halt
         self.halted = self.halting and (self.fetched is None)
-        self.halted = self.halted and (not self.FU.Int.busy)
         for U in self.FU.All:
             self.halted = self.halted and (not U.busy)
         self.halted = self.halted and (len(self.Reg.Reserve) == 0)
+        #print self.Reg.Reserve
         #Return whether done
         return self.halted
 
@@ -371,7 +385,7 @@ class Instruction:
         self.src2 = None
         self.target = None
         #print "'",self.Op,"'"
-        if self.Op in ['LW','L.D','SW','S.D']:
+        if self.Op in ['LW','L.D']:
             self.Unit = 'Int'
             O = inst.split(',')
             self.dest = O[0].strip()[-2:]
@@ -379,10 +393,20 @@ class Instruction:
             self.imm1 = int(Os[0].strip())
             self.src1 = imm
             self.src2 = Os[1].strip()[0:2]
+        elif self.Op in ['SW','S.D']:
+            self.Unit = 'Int'
+            O = inst.split(',')
+            self.target = O[0].strip()[-2:]
+            Os = O[1].strip().split('(')
+            self.imm1 = int(Os[0].strip())
+            self.src1 = imm
+            self.src2 = Os[1].strip()[0:2]
         elif self.Op == 'HLT':
             self.Unit = 'HLT'
         elif self.Op == 'J':
-            pass
+            O = inst.split()
+            self.target = O[-1].strip()
+            self.Unit = 'J'
         elif self.Op in ['BEQ','BNE']:
             O = inst.split(',')
             self.target = O[2].strip()
@@ -450,6 +474,7 @@ class Memory:
         self.adjust = []
 
     def Fetch(self):
+        #print self.PC
         if self.iWaiting == 2:
             return None
         elif self.iWaiting == 1:
@@ -466,7 +491,7 @@ class Memory:
             self.PC += 1
             return out
         else:
-            #print 'miss'
+            print 'miss'
             self.iWaiting = 2
             #print self.Clock.time, '!!!'
             if (len(self.tasks) > 0)and(self.tasks[0][2]>=self.Clock.time):
@@ -485,7 +510,9 @@ class Memory:
     
     def Retarget(self,label):
         if label in self.iLabels:
-            self.adjust.append(self.iLabels[label])
+            #self.adjust.append(self.iLabels[label])
+            self.PC = self.iLabels[label]
+            print self.PC
 
     def Work(self):
         #print 'memwork', len(self.tasks)
@@ -499,15 +526,15 @@ class Memory:
                 self.tasks[0][1] -= 1
                 if self.tasks[0][1] == 0:
                     self.tasks.remove(self.tasks[0])
-        if len(self.adjust) > 0:
-            self.PC = self.adjust[0]
-            self.adjust.remove(self.adjust[0])
-            print self.PC
+        #if len(self.adjust) > 0:
+        #    self.PC = self.adjust[0]
+        #    self.adjust.remove(self.adjust[0])
+        #    print self.PC
     
     def DataInst(self,U):
         op = U.op.instruction.Op
         addr = U.dat1 + U.dat2
-        #print U.dat1, U.dat2
+        print U.dat1, U.dat2
         if op == 'LW':
             outTime = 1
             self.dcreq += 1
@@ -534,8 +561,8 @@ class Memory:
                 outTime += busTime
                 self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
             if self.dCache.hit(addr+1):
-                if busTime == 0:
-                    outTime += 1
+                #if busTime == 0:
+                    outTime += 0
                     self.dchit += 1
             else:
                 busTime = self.dCache.replace(addr+1)
