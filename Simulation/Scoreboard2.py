@@ -22,6 +22,7 @@ class Scoreboard:
 
     def Cycle(self):
         #Increment the clock and update the FU countdowns
+        #print self.Reg.Reserve
         self.Clock.increment()
         self.Mem.Work()
         for U in self.FU.All:
@@ -29,8 +30,9 @@ class Scoreboard:
                 self.FU.Int.time -= 1
         #Writebacks
         delres = []
-        for dest,U in self.Reg.Reserve:
-            if U.time == -1 and U.busy:
+        for dest,U in self.Reg.Reserve.iteritems():
+            #print dest,'/', U
+            if U.time == -1 and U.busy and U.red1 and U.red2:
                 delres.append(dest)
                 U.op.write = self.Clock.time
                 dest = U.result
@@ -44,36 +46,68 @@ class Scoreboard:
                 U.result = None
                 U.src1 = None
                 U.src2 = None
+                U.time = -1
         #Executions
         for U in self.FU.All:
             if U.time == 0:
                 U.op.execute = self.Clock.time
+                print U.op.ID, U.op.instruction.Op, U.op.execute, 'X'
         #Reads
         for U in self.FU.All:
+            #print U.op, '!'
+            if U.op is None:
+                continue
             if U.op.read == -1:
-                red = [U.red1, U.red2]
-                src = [U.src1, U.src2]
-                dat = [U.dat1, U.dat2]
-                imm = [U.op.imm1, U.op.imm2]
-                for x in range(2):
-                    if not red[x]:
-                        if src[x] is None:
-                            red[x] = True
-                        elif src[x] is self.imm:
-                            red[x] = True
-                            dat[x] = imm[x]
+                #red = [U.red1, U.red2]
+                #src = [U.src1, U.src2]
+                #dat = [U.dat1, U.dat2]
+                imm = [U.op.instruction.imm1, U.op.instruction.imm2]
+                if not U.red1:
+                    #print U.op.ID, '!'
+                    if U.src1 is None:
+                        U.red1 = True
+                    elif self.imm.__eq__(U.src1):
+                        #print '!'
+                        U.red1 = True
+                        U.dat1 = imm[0]
+                    else:
+                        #print src[x]
+                        if U.src1 in self.Reg.Reserve:
+                            U.op.raw = True
+                            #print '!'
                         else:
-                            if src[x] in self.Reg.Reserve:
-                                U.op.raw = True
+                            U.red1 = True
+                            i = int(U.src1[1:])
+                            if U.src1[0] == 'F':
+                                U.dat1 = self.Reg.F[i]
                             else:
-                                red[x] = True
-                                i = int(src[x][1:])
-                                if src[x][0] == 'F':
-                                    dat[x] = self.Reg.F[i]
-                                else:
-                                    dat[x] = self.Reg.R[i]
+                                U.dat1 = self.Reg.R[i]
+                if not U.red2:
+                    print U.src2
+                    if U.src2 is None:
+                        U.red2 = True
+                    elif self.imm.__eq__(U.src2):
+                        #print '!'
+                        U.red2 = True
+                        U.dat2 = imm[1]
+                    else:
+                        #print src[x]
+                        if U.src2 in self.Reg.Reserve:
+                            U.op.raw = True
+                            #print '!'
+                        else:
+                            U.red2 = True
+                            i = int(U.src2[1:])
+                            if U.src2[0] == 'F':
+                                U.dat2 = self.Reg.F[i]
+                            else:
+                                U.dat2 = self.Reg.R[i]
                 if U.red1 and U.red2:
+                    #print U.op.read
+                    #print U.dat1, U.dat2
                     U.op.read = self.Clock.time
+                    print U.op.ID, U.op.instruction.Op, U.op.read, 'R'
+                    #print U.op.read
                     if U in self.FU.Div:
                         U.time = 50
                         U.result = float(U.dat1) / float(U.dat2)
@@ -106,9 +140,11 @@ class Scoreboard:
         #Issue
         if not (self.fetched is None):  # If there is a fetched instruct
             fu = self.fetched.instruction.Unit
+            #print fu
             issueto = None  # Figure out which FU the instruction needs
             if fu == 'Int':
-                issueto = self.FU.Int
+                if not self.FU.Int.busy:
+                    issueto = self.FU.Int
             elif fu == 'Add':
                 for U in self.FU.Add:
                     if not U.busy:
@@ -139,6 +175,7 @@ class Scoreboard:
                     self.fetched = None
             else:  # See if the destination is free
                 dest = self.fetched.instruction.dest
+                #print issueto
                 if dest is None:
                     pass
                 else:
@@ -150,9 +187,11 @@ class Scoreboard:
                         issueto.src1 = issueto.op.instruction.src1
                         issueto.src2 = issueto.op.instruction.src2
                         issueto.dest = dest
-                        self.Reg.Reserve[dest] = self.fetched
+                        self.Reg.Reserve[dest] = issueto
                         self.fetched.issue = self.Clock.time
                         self.fetched = None
+                        print issueto.op.ID, issueto.op.instruction.Op, 
+                        print self.Clock.time, 'I'
         #Fetch
         if not self.halting:  # Fetch if not halting
             if self.fetched is None:  # If nothing waiting to issue
@@ -162,6 +201,8 @@ class Scoreboard:
                     self.fetched.ID = self.icounter
                     self.fetched.fetch = self.Clock.time
                     self.Records[self.icounter] = self.fetched
+                    print self.fetched.ID, self.fetched.instruction.Op, 
+                    print self.Clock.time, 'F'
         #Check halt
         self.halted = self.halting and (self.fetched is None)
         self.halted = self.halted and (not self.FU.Int.busy)
@@ -187,9 +228,8 @@ class Record:
         self.struct = False
     
     def __str__(self):
-        outs = [self.instruction.inst]
-        if self.instruction.label == '':
-            outs.append('\t')
+        outs = []
+        outs.append(self.instruction.inst)
         for t in [self.fetch,self.issue,self.read,self.execute,self.write]:
             if t > -1:
                 outs.append(str(t))
@@ -199,7 +239,7 @@ class Record:
                 outs.append('Y')
             else:
                 outs.append('N')
-        return '\t'.join(outs)
+        return ';'.join(outs)
 
 
 class FuncUnit:
@@ -265,7 +305,8 @@ class Instruction:
         self.imm2 = 0
         self.src1 = None
         self.src2 = None
-        if self.Op == ['LW','L.D','SW','S.D']:
+        #print "'",self.Op,"'"
+        if self.Op in ['LW','L.D','SW','S.D']:
             self.Unit = 'Int'
             O = inst.split(',')
             self.dest = O[0].strip()[-2:]
@@ -274,7 +315,7 @@ class Instruction:
             self.src1 = imm
             self.src2 = Os[1].strip()[0:2]
         elif self.Op == 'HLT':
-            pass
+            self.Unit = 'HLT'
         elif self.Op == 'J':
             pass
         elif self.Op == 'BEQ':
@@ -282,11 +323,13 @@ class Instruction:
         elif self.Op == 'BNE':
             pass
         elif self.Op in ['DADD','DSUB','AND','OR']:
+            O = inst.split(',')
             self.src2 = O[2].strip()
             self.src1 = O[1].strip()
             self.dest = O[0].strip()[-2:]
             self.Unit = 'Int'
         elif self.Op in ['DADDI','DSUBI','ANDI','ORI']:
+            O = inst.split(',')
             self.src2 = imm
             self.imm2 = int(O[2].strip())
             self.src1 = O[1].strip()
@@ -329,7 +372,7 @@ class Memory:
         self.iLabels = {}
         for line in inst:
             self.iMem.append(Instruction(line,self.Imm))
-        for i,ins in self.iMem:
+        for i,ins in enumerate(self.iMem):
             if ins.label != '':
                 self.iLabels[ins.label] = i
         self.dMem = [None for i in range(0x100)]
@@ -355,6 +398,7 @@ class Memory:
             self.PC += 1
             return out
         else:
+            print 'miss'
             self.iWaiting = 2
             self.tasks.append(['ifetch',11])
             start = self.PC - (self.PC % 4)
@@ -365,11 +409,12 @@ class Memory:
             return None
 
     def Work(self):
+        #print 'memwork', len(self.tasks)
         if len(self.tasks) > 0:
             if self.tasks[0][0] == 'ifetch':
                 self.tasks[0][1] -= 1
                 if self.tasks[0][1] == 0:
-                    self.iWaiting == 1
+                    self.iWaiting = 1
                     self.tasks.remove(self.tasks[0])
             else:
                 self.tasks[0][1] -= 1
@@ -379,6 +424,7 @@ class Memory:
     def DataInst(self,U):
         op = U.op.instruction.Op
         addr = U.dat1 + U.dat2
+        #print U.dat1, U.dat2
         if op == 'LW':
             outTime = 1
             self.dcreq += 1
@@ -393,9 +439,10 @@ class Memory:
                 U.time = outTime
         elif op == 'L.D':
             self.dcreq += 2
-            outTime = 1
+            outTime = 2
             busTime = 0
-            U.result = int(bin(self.dMem[addr])+bin(self.dMem[addr+1]),2)
+            U.result = int(bin(self.dMem[addr])[2:] + \
+            bin(self.dMem[addr+1])[2:],2)
             if self.dCache.hit(addr):
                 outTime += 1
                 self.dchit += 1
@@ -457,3 +504,10 @@ class DCache:
 class Immediate:
     def __init__(self):
         self.val = True
+        self.val2 = {}
+        self.val3 = [1,2,False,{}]
+    def __eq__(self,other):
+        try:
+            return (self.val and other.val)
+        except:
+            return False

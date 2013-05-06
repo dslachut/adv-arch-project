@@ -12,21 +12,28 @@ class Simulation:
             inst = FILE.readlines()
         with open(dataFname) as FILE:
             lines = FILE.readlines()
-            data = map(lines, lambda x: int(x,2))
+            #data = map(lines, lambda x: int(x,2))
+            for line in lines:
+                data.append(int(line,2))
         with open(regFname) as FILE:
             lines = FILE.readlines()
-            reg = map(lines, lambda x: int(x,2))
+            #reg = map(lines, lambda x: int(x,2))
+            for line in lines:
+                reg.append(int(line,2))
         with open(configFname) as FILE:
             for line in FILE:
                 FU.append(int(line))
         #self.memory = Memory(data,inst)
         self.scoreboard = Scoreboard(FU,reg,data,inst)
     
-    def Run(self):
+    def Run(self,fname='result.txt'):
+        print 'Running simulation'
         done = False
         while not done:
             done = self.scoreboard.Cycle()
-        with open('result.txt','w') as FILE:
+        with open(fname,'w') as FILE:
+            FILE.write('Instruction;Fetch;Issue;Read;Exec;Write;')
+            FILE.write('RAW;WAR;WAW;Struct\n')
             for k in sorted(self.scoreboard.Records.iterkeys()):
                 FILE.write(str(self.scoreboard.Records[k]))
                 FILE.write('\n')
