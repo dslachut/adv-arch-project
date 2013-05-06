@@ -186,7 +186,7 @@ class Scoreboard:
                         o = ['LW','SW','L.D','S.D']
                         if U.op.instruction.Op in o:
                             U.time = 100000
-                            self.Mem.DataInst(U)
+                            self.Mem.DataInst(U,self.Reg)
                         else:
                             U.time = 1
                             if U.op.instruction.Op in ['DADD','DADDI']:
@@ -531,7 +531,7 @@ class Memory:
         #    self.adjust.remove(self.adjust[0])
         #    print self.PC
     
-    def DataInst(self,U):
+    def DataInst(self,U,reg):
         op = U.op.instruction.Op
         addr = U.dat1 + U.dat2
         print U.dat1, U.dat2
@@ -546,7 +546,7 @@ class Memory:
                 busTime = self.dCache.replace(addr)
                 outTime += busTime
                 self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
-                U.time = outTime
+            U.time = outTime
         elif op == 'L.D':
             self.dcreq += 2
             outTime = 2
@@ -571,9 +571,49 @@ class Memory:
             U.time = outTime
             #print self.Clock.time, '!!'
         elif op == 'SW':
-            pass
+            outTime = 1
+            self.dcreq += 1
+            target = U.op.instruction.target
+            self.dMem[addr] = reg.R[int(target[1:])]
+            if self.dCache.hit(addr):
+                self.dCache.Dirty(addr)
+                outTime += 1
+                self.dchit += 1
+            else:
+                busTime = self.dCache.replace(addr)
+                outTime += busTime
+                self.tasks.append((['dfetch',busTime,self.Clock.time+1,U]))
+                self.dCache.Dirty(addr)
+            U.time = outTime
         elif op == 'S.D':
-            pass
+            self.dcreq += 2
+            outTime = 2
+            busTime = 0
+            target = U.op.instruction.target
+            v = reg.F[int(target[1:])]
+            v1 = bin(v)[2:]
+            v1 = ('0'*(64 - len(v1))) + v1
+            self.dMem[addr] = int(v1[:32],2)
+            self.dMem[addr+1] = int(v1[32:],2)
+            if self.dCache.hit(addr):
+                outTime += 1
+                self.dchit += 1
+                self.dCache.Dirty(addr)
+            else:
+                busTime = self.dCache.replace(addr)
+                outTime += busTime
+                self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
+                self.dCache.Dirty(addr)
+            if self.dCache.hit(addr+1):
+                outTime += 0
+                self.dchit += 1
+                self.dCache.Dirty(addr+1)
+            else:
+                busTime = self.dCache.replace(addr+1)
+                outTime += busTime
+                self.tasks.append(['dfetch',busTime,self.Clock.time+1,U])
+                self.dCache.Dirty(addr+1)
+            U.time = outTime
 
 
 class DCache:
@@ -611,6 +651,12 @@ class DCache:
                 self.TLU[i] = self.Clock.time
                 return True
         return False
+    
+    def dirty(self,addr):
+        for i, block in enumerate(self.blocks):
+            if addr in block:
+                self.dirty[i] = True
+
 
 class StoreDest:
     def __init__(self):
