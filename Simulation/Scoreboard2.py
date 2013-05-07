@@ -172,7 +172,10 @@ class Scoreboard:
                     #print U.op.read
                     if U in self.FU.Div:
                         U.time = 50
-                        U.result = float(U.dat1) / float(U.dat2)
+                        try:
+                            U.result = float(U.dat1) / float(U.dat2)
+                        except:
+                            U.result = 0
                     if U in self.FU.Mul:
                         U.time = 30
                         U.result = float(U.dat1) * float(U.dat2)
@@ -224,6 +227,7 @@ class Scoreboard:
             elif fu == 'J':
                 self.Mem.Retarget(self.fetched.instruction.target)
                 self.stalled = True
+                self.fetched.issue  = self.Clock.time
                 self.fetched = None
             elif fu == 'HLT':
                 pass
@@ -242,7 +246,8 @@ class Scoreboard:
             else:  # See if the destination is free
                 dest = self.fetched.instruction.dest
                 #print issueto
-                if dest is None and not (fu in ['BNE','BEQ','S.D','SW']):
+                if dest is None and not (fu in ['BNE','BEQ']) and\
+                not (self.fetched.instruction.Op in ['SW','S.D']):
                     pass
                 else:
                     if (not (dest is None)) and \
@@ -309,14 +314,20 @@ class Record:
         outs.append(self.instruction.inst)
         for t in [self.fetch,self.issue,self.read,self.execute,self.write]:
             if t > -1:
-                outs.append(str(t))
-            else: outs.append('  ')
+                outs.append(' '+str(t))
+            else: outs.append('')
         for h in [self.raw,self.war,self.waw,self.struct]:
             if h:
-                outs.append('Y')
+                outs.append(' Y')
             else:
-                outs.append('N')
-        return ';'.join(outs)
+                outs.append(' N')
+        if self.instruction.label == '':
+            outs[0] = '    ' + outs[0]
+        if (self.instruction.Op=='HLT') and (self.instruction.label==''):
+            outs[0] = outs[0] + '\t\t'
+        elif self.instruction.Op in ['HLT','J']:
+            outs[0] = outs[0] + '\t'
+        return '\t'.join(outs)
 
 
 class FuncUnit:
@@ -652,7 +663,7 @@ class DCache:
                 return True
         return False
     
-    def dirty(self,addr):
+    def Dirty(self,addr):
         for i, block in enumerate(self.blocks):
             if addr in block:
                 self.dirty[i] = True

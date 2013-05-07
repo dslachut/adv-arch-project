@@ -35,8 +35,8 @@ class Simulation:
         except KeyboardInterrupt:
             print self.scoreboard.Clock.time
         with open(fname,'w') as FILE:
-            FILE.write('Instruction;Fetch;Issue;Read;Exec;Write;')
-            FILE.write('RAW;WAR;WAW;Struct\n')
+            FILE.write('\tInstruction\tFetch\tIssue\tRead\tExec\tWrite\t')
+            FILE.write('RAW\tWAR\tWAW\tStruct\n')
             for k in sorted(self.scoreboard.Records.iterkeys()):
                 FILE.write(str(self.scoreboard.Records[k]))
                 FILE.write('\n')
